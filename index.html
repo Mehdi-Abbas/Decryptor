@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="favicon.ico">
+    <title>Encryption and Decryption</title>
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        margin: 20px auto;
+        background-color: #f4f4f4;
+        width: 80%;
+        display: flex;
+        flex-direction: column; 
+        align-items: center; 
+      }
+
+      #inputOutputSection {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      #inputSection,
+      #outputSection {
+        flex: 1;
+		margin-right: 20px;
+		max-width: 50%;
+		max-height: 800px;
+      }
+
+      h1,
+      h2 {
+        color: #333;
+        text-align: center;
+		margin: auto;
+      }
+
+      label {
+        display: block;
+        margin-top: 10px;
+        font-size: 16px;
+      }
+
+      textarea {
+        width: 100%;
+        height: 100px;
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        resize: vertical;
+      }
+
+      input {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-right: 10px;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      #output {
+        margin-top: 28px;
+        white-space: pre-wrap;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #fff;
+        max-height: 70%;
+        overflow-y: auto;
+        word-wrap: break-word;
+      }
+
+      /* Modal styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+        padding-top: 60px;
+      }
+
+      .modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        word-wrap: break-word;
+        text-align: left;
+      }
+
+      .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .close:hover,
+      .close:focus {
+        color: black;
+        text-decoration: none;
+      }
+
+      /* Copy to Clipboard button styles */
+      #copyBtn {
+        background-color: #008CBA;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 10px;
+      }
+
+      #copyBtn:hover {
+        background-color: #00557E;
+      }
+
+      input#saveKeyIV {
+        width: fit-content;
+
+        #chkLabel {
+          display: flex;
+          align-items: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <script src="node_modules/crypto-js/crypto-js.js"></script>
+    <script src="node_modules/json-beautify/index.js"></script>
+    <script>
+      window.onload = function() {
+        // Your code to retrieve key and IV from local storage
+        const savedKeyIV = getKeyIVFromLocalStorage();
+        const key = savedKeyIV.key;
+        const iv = savedKeyIV.iv;
+        // Populate key and IV fields
+        document.getElementById('key').value = key;
+        document.getElementById('iv').value = iv;
+		document.getElementById('output').innerText = 'Decrypted text will show here...';
+      };
+      // Function to save key and IV to local storage
+      function saveKeyIVToLocalStorage(key, iv) {
+        localStorage.setItem('encryptionKey', key);
+        localStorage.setItem('encryptionIV', iv);
+      }
+      // Function to retrieve key and IV from local storage
+      function getKeyIVFromLocalStorage() {
+        const key = localStorage.getItem('encryptionKey');
+        const iv = localStorage.getItem('encryptionIV');
+        return {
+          key,
+          iv
+        };
+      }
+
+      function encrypt() {
+        const inputText = document.getElementById('inputText').value;
+        let key = document.getElementById('key').value;
+        let iv = document.getElementById('iv').value;
+        let saveKeyIVCheckbox = document.getElementById('saveKeyIV');
+        // Check if key and IV are stored in local storage
+        const savedKeyIV = getKeyIVFromLocalStorage();
+        if (!key) {
+          key = savedKeyIV.key;
+          document.getElementById('key').value = savedKeyIV.key;
+        }
+        if (!iv) {
+          iv = savedKeyIV.iv;
+          document.getElementById('iv').value = savedKeyIV.iv;
+        }
+        if (saveKeyIVCheckbox.checked) {
+          saveKeyIVToLocalStorage(key, iv);
+        }
+        if (inputText && key && iv) {
+          // Convert the IV and key from Base64String to WordArray
+          const ivWordArray = CryptoJS.enc.Utf8.parse(iv);
+          const keyWordArray = CryptoJS.enc.Utf8.parse(key);
+          // Perform encryption with CBC mode and PKCS7 padding
+          const encrypted = CryptoJS.AES.encrypt(inputText, keyWordArray, {
+            iv: ivWordArray
+          }).ciphertext.toString(CryptoJS.enc.Base64);
+          // Display the result
+          displayModal(encrypted);
+        } else {
+          alert('Please enter text, key, IV, and key.');
+        }
+      }
+
+      function decrypt() {
+        document.getElementById('output').innerText = ''
+		const inputText = document.getElementById('inputText').value;
+        let key = document.getElementById('key').value;
+        let iv = document.getElementById('iv').value;
+        let saveKeyIVCheckbox = document.getElementById('saveKeyIV');
+        // Check if key and IV are stored in local storage
+        const savedKeyIV = getKeyIVFromLocalStorage();
+        if (!key) {
+          key = savedKeyIV.key;
+          document.getElementById('key').value = savedKeyIV.key;
+        }
+        if (!iv) {
+          iv = savedKeyIV.iv;
+          document.getElementById('iv').value = savedKeyIV.iv;
+        }
+        if (saveKeyIVCheckbox.checked) {
+          saveKeyIVToLocalStorage(key, iv);
+        }
+        if (inputText && key && iv) {
+          // Convert the IV and key from Base64String to WordArray
+          const ivWordArray = CryptoJS.enc.Utf8.parse(iv);
+          const keyWordArray = CryptoJS.enc.Utf8.parse(key);
+          try {
+            // Convert the ciphertext from Base64String to WordArray
+            const ciphertext = CryptoJS.enc.Base64.parse(inputText);
+            // Perform decryption with CBC mode and PKCS7 padding
+            const decrypted = CryptoJS.AES.decrypt({
+              ciphertext: ciphertext
+            }, keyWordArray, {
+              iv: ivWordArray
+            }).toString(CryptoJS.enc.Utf8);
+			const r = /\\u([\d\w]{4})/gi;
+			decrypted_ = decrypted.replace(r, function (match, grp) {
+				return String.fromCharCode(parseInt(grp, 16)); } );
+            // Display the result
+			const beautifiedText = isJSON(decrypted_) ? beautifyJson(decrypted_) : decrypted_;
+            document.getElementById('output').innerText = beautifiedText;
+          } catch (error) {
+            alert('Decryption failed. Please check your IV or key.');
+          }
+        } else {
+          alert('Please enter text, IV, and key.');
+        }
+      }
+
+      function isJSON(str) {
+        try {
+          JSON.parse(str);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function beautifyJson(jsonString) {
+        try {
+          const json = JSON.parse(jsonString);
+          return JSON.stringify(json, null, 2);
+        } catch (error) {
+          return 'Invalid JSON';
+        }
+      }
+
+      function displayModal(text) {
+        const modalText = document.getElementById('modalText');
+        modalText.innerText = text;
+        const modal = document.getElementById('myModal');
+        modal.style.display = 'block';
+      }
+
+      function closeModal() {
+        const modal = document.getElementById('myModal');
+        modal.style.display = 'none';
+      }
+
+      function copyToClipboard() {
+        const modalText = document.getElementById('modalText');
+        const textArea = document.createElement('textarea');
+        textArea.value = modalText.innerText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Text copied to clipboard!');
+      }
+      // Close the modal if the user clicks outside of it
+      window.onclick = function(event) {
+        const modal = document.getElementById('myModal');
+        if (event.target === modal) {
+          modal.style.display = 'none';
+        }
+      };
+    </script>
+    <!-- Title Section -->
+    <div id="titleSection">
+      <h1>Encryption and Decryption</h1>
+    </div>
+
+    <!-- Input and Output Section -->
+    <div id="inputOutputSection">
+      <!-- Input Section -->
+      <div id="inputSection">
+        <label for="inputText">Enter text to encrypt/decrypt:</label>
+        <textarea id="inputText" placeholder="Enter text here"></textarea>
+        <label for="key">Enter Key:</label>
+        <input type="text" id="key" placeholder="Enter Key">
+        <label for="iv">Enter Initialization Vector (IV):</label>
+        <input type="text" id="iv" placeholder="Enter IV">
+        <label for="saveKeyIV" id="chkLabel">
+          <input type="checkbox" id="saveKeyIV" checked> Save Key & IV Locally </label>
+        <br />
+        <button onclick="encrypt()">Encrypt</button>
+        <button onclick="decrypt()">Decrypt</button>
+      </div>
+
+      <!-- Output Section -->
+      <div id="outputSection">
+		<div id="output">
+      </div>
+    </div>
+    <!-- Modal -->
+    <div id="myModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <p id="modalText"></p>
+        <button id="copyBtn" onclick="copyToClipboard()">Copy to Clipboard</button>
+      </div>
+    </div>
+  </body>
+</html>
